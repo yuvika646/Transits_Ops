@@ -139,4 +139,58 @@ export const tripRoutes = new Elysia({ prefix: '/api/v1' })
       );
     },
     { params: t.Object({ id: t.String({ format: 'uuid' }) }) },
+  )
+  .get(
+    '/trips/:id',
+    async ({ actor, params }) => {
+      const [trip] = await db
+        .select()
+        .from(trips)
+        .where(and(eq(trips.id, params.id), eq(trips.organizationId, actor.organizationId)));
+      if (!trip) throw notFound('Trip');
+      if (actor.roles.includes('DRIVER') && trip.driverId !== actor.driverId)
+        throw notFound('Trip');
+      return ok(trip);
+    },
+    { params: t.Object({ id: t.String({ format: 'uuid' }) }) },
+  )
+  .patch(
+    '/trips/:id',
+    async ({ actor, params, body }) => {
+      requireRole(actor, ['DISPATCHER']);
+      const [existing] = await db
+        .select()
+        .from(trips)
+        .where(and(eq(trips.id, params.id), eq(trips.organizationId, actor.organizationId)));
+      if (!existing) throw notFound('Trip');
+      if (existing.status !== 'DRAFT') throw new Error('Only draft trips can be edited.');
+      const [trip] = await db
+        .update(trips)
+        .set({
+          ...body,
+          cargoWeightKg: body.cargoWeightKg === undefined ? undefined : String(body.cargoWeightKg),
+          plannedDistanceKm:
+            body.plannedDistanceKm === undefined ? undefined : String(body.plannedDistanceKm),
+          revenue: body.revenue === undefined ? undefined : String(body.revenue),
+          updatedAt: new Date(),
+        })
+        .where(eq(trips.id, existing.id))
+        .returning();
+      return ok(trip);
+    },
+    {
+      params: t.Object({ id: t.String({ format: 'uuid' }) }),
+      body: t.Partial(
+        t.Object({
+          source: t.String({ minLength: 1 }),
+          destination: t.String({ minLength: 1 }),
+          vehicleId: t.String({ format: 'uuid' }),
+          driverId: t.String({ format: 'uuid' }),
+          cargoWeightKg: t.Number({ minimum: 0 }),
+          plannedDistanceKm: t.Number({ minimum: 0 }),
+          revenue: t.Number({ minimum: 0 }),
+          notes: t.String(),
+        }),
+      ),
+    },
   );

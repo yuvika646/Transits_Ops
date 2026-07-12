@@ -2,61 +2,24 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/app-shell';
-import { allowed, eligibleDrivers, eligibleVehicles, label, load, money, save } from '@/lib/store';
+import { eligibleDrivers, eligibleVehicles, label, money } from '@/lib/store';
+import { api } from '@/lib/api';
+import { allowedPaths, type CurrentUser } from '@/lib/auth';
+import { useLiveOperations } from '@/features/operations/use-live-operations';
+import { UserAdministration } from '@/features/settings/user-administration';
+import { AnalyticsView } from '@/features/analytics/analytics-view';
 import type { Role, State, TripStatus } from '@/lib/types';
-type User = { name: string; email: string; role: Role; initials: string };
-const nav = [
-  ['/dashboard', 'Dashboard'],
-  ['/fleet', 'Fleet'],
-  ['/drivers', 'Drivers'],
-  ['/trips', 'Trips'],
-  ['/maintenance', 'Maintenance'],
-  ['/fuel-expenses', 'Fuel & Expenses'],
-  ['/analytics', 'Analytics'],
-  ['/settings', 'Settings'],
-];
+type User = {
+  name: string;
+  email: string;
+  role: Role;
+  initials: string;
+  driverId: string | null;
+  allowedPaths: string[];
+};
 const Badge = ({ status }: { status: string }) => (
   <span className={'badge ' + status.toLowerCase().replaceAll('_', '-')}>{label(status)}</span>
 );
-function Shell({ user, children }: { user: User; children: React.ReactNode }) {
-  const path = typeof window === 'undefined' ? '' : location.pathname;
-  return (
-    <div className="app">
-      <aside className="sidebar">
-        <h1 className="brand">TransitOps</h1>
-        <nav className="nav">
-          {nav
-            .filter(([p]) => allowed[user.role].includes(p))
-            .map(([p, n]) => (
-              <Link className={path === p ? 'active' : ''} href={p} key={p}>
-                {n}
-              </Link>
-            ))}
-        </nav>
-        <div style={{ position: 'absolute', bottom: 20 }}>
-          <button
-            className="button danger"
-            onClick={() => {
-              localStorage.removeItem('transitops-user');
-              location.href = '/login';
-            }}
-          >
-            Sign out
-          </button>
-        </div>
-      </aside>
-      <main className="main">
-        <header className="top">
-          <input className="search" placeholder="Search vehicles, drivers or trips…" />
-          <span>{user.name}</span>
-          <Badge status={user.role} />
-          <span className="badge">{user.initials}</span>
-        </header>
-        <div className="content">{children}</div>
-      </main>
-    </div>
-  );
-}
 function Header({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div className="row between">
@@ -84,7 +47,7 @@ function Dashboard({ s, user }: { s: State; user: User }) {
     ],
   ];
   if (user.role === 'DRIVER') {
-    const mine = s.trips.filter((t) => t.driverId === 'd1');
+    const mine = s.trips.filter((t) => t.driverId === user.driverId);
     return (
       <>
         <Header title="My Operations" />
@@ -394,7 +357,7 @@ function Trips({
   own?: boolean;
   set?: (x: State) => void;
 }) {
-  const trips = own ? s.trips.filter((t) => t.driverId === 'd1') : s.trips;
+  const trips = own ? s.trips.filter((t) => t.driverId === user.driverId) : s.trips;
   return (
     <section className="card">
       <h2>{own ? 'My assigned trips' : 'Trip board'}</h2>
@@ -857,8 +820,7 @@ function Settings({ set }: { set: (x: State) => void }) {
               className="button danger"
               onClick={() => {
                 if (confirm('Reset all demo data?')) {
-                  localStorage.removeItem('transitops-state');
-                  set(load());
+                  location.reload();
                 }
               }}
             >
@@ -866,18 +828,8 @@ function Settings({ set }: { set: (x: State) => void }) {
             </button>
           </div>
         </section>
-        <section className="card">
-          <h2>Role permissions</h2>
-          <p className="sub">Manage · View · None</p>
-          {Object.entries(allowed).map(([role, routes]) => (
-            <p key={role}>
-              <b>{label(role)}</b>
-              <br />
-              <small>{routes.map((x) => x.replace('/', '') || 'dashboard').join(' · ')}</small>
-            </p>
-          ))}
-        </section>
       </div>
+      <UserAdministration />
     </>
   );
 }
@@ -917,21 +869,43 @@ function Detail({ s }: { s: State }) {
   );
 }
 export default function App() {
-  const [user, setUser] = useState<User | null>(null),
-    [s, setS] = useState<State | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const operations = useLiveOperations();
+
   useEffect(() => {
-    const u = localStorage.getItem('transitops-user');
-    if (!u) {
-      location.href = '/login';
-      return;
-    }
-    setUser(JSON.parse(u));
-    setS(load());
+    api<CurrentUser>('/api/v1/me')
+      .then((currentUser) => {
+        const primaryRole = currentUser.roles[0];
+        if (!primaryRole) throw new Error('No operational role is assigned.');
+        setUser({
+          name: currentUser.name,
+          email: currentUser.email,
+          role: primaryRole,
+          initials: currentUser.name
+            .split(/\s+/)
+            .map((part) => part[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+          driverId: currentUser.driverId,
+          allowedPaths: allowedPaths(currentUser),
+        });
+      })
+      .catch(() => {
+        location.href = '/login';
+      });
   }, []);
-  useEffect(() => {
-    if (s) save(s);
-  }, [s]);
-  if (!user || !s) return <main className="loginform">Loading TransitOps…</main>;
+
+  const s = operations.state;
+  if (!user || !s || operations.isLoading)
+    return <main className="loginform">Loading TransitOps…</main>;
+  if (operations.error)
+    return (
+      <main className="loginform">
+        <h1>Unable to load operations</h1>
+        <p>Check that the backend and PostgreSQL are running.</p>
+      </main>
+    );
   const p = location.pathname;
   if (p === '/unauthorized')
     return (
@@ -942,20 +916,20 @@ export default function App() {
       </main>
     );
   const root = '/' + p.split('/')[1];
-  if (root !== '/driver' && !allowed[user.role].includes(root)) {
+  if (root !== '/driver' && !user.allowedPaths.includes(root)) {
     location.href = '/unauthorized';
     return null;
   }
   let child: React.ReactNode;
   if (p === '/dashboard') child = <Dashboard s={s} user={user} />;
-  else if (p === '/fleet') child = <Fleet s={s} set={setS} />;
-  else if (p === '/drivers') child = <Drivers s={s} set={setS} />;
-  else if (p === '/trips') child = <Dispatch s={s} set={setS} user={user} />;
-  else if (p === '/driver/my-trips') child = <Trips s={s} set={setS} user={user} own />;
-  else if (p === '/maintenance') child = <Maintenance s={s} set={setS} />;
+  else if (p === '/fleet') child = <Fleet s={s} set={operations.set} />;
+  else if (p === '/drivers') child = <Drivers s={s} set={operations.set} />;
+  else if (p === '/trips') child = <Dispatch s={s} set={operations.set} user={user} />;
+  else if (p === '/driver/my-trips') child = <Trips s={s} set={operations.set} user={user} own />;
+  else if (p === '/maintenance') child = <Maintenance s={s} set={operations.set} />;
   else if (p === '/fuel-expenses') child = <Financials s={s} />;
   else if (p === '/analytics') child = <Financials s={s} analytics />;
-  else if (p === '/settings') child = <Settings set={setS} />;
+  else if (p === '/settings') child = <Settings set={operations.set} />;
   else child = <Detail s={s} />;
   return <AppShell user={user}>{child}</AppShell>;
 }

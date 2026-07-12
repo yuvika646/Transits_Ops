@@ -1,23 +1,51 @@
 'use client';
+
+import Link from 'next/link';
 import { useState } from 'react';
-import { accounts } from '@/lib/store';
+import { API_URL, ApiError, api } from '@/lib/api';
+import { demoAccounts, type CurrentUser } from '@/lib/auth';
+
+function signInMessage(code?: string): string {
+  if (code === 'ACCOUNT_PENDING') return 'Your account is awaiting Fleet Manager approval.';
+  if (code === 'ACCOUNT_REJECTED')
+    return 'This account request was rejected. Contact your Fleet Manager.';
+  if (code === 'ACCOUNT_SUSPENDED') return 'This account is suspended. Contact your Fleet Manager.';
+  return 'Invalid email or password.';
+}
+
 export default function Login() {
-  const [email, setEmail] = useState('raven.k@transitops.in'),
-    [password, setPassword] = useState('Transit@2026'),
-    [err, setErr] = useState('');
-  const go = (e: React.FormEvent) => {
-    e.preventDefault();
-    const a = accounts.find((x) => x[1] === email);
-    if (!a || password !== 'Transit@2026') {
-      setErr('Invalid credentials. Use the supplied demo password.');
-      return;
+  const [email, setEmail] = useState('raven.k@transitops.in');
+  const [password, setPassword] = useState('Transit@2026');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function signIn(event: React.FormEvent) {
+    event.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_URL}/api/v1/auth/sign-in/email`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok)
+        throw new ApiError(payload?.message ?? 'Sign in failed.', response.status, payload?.code);
+      await api<CurrentUser>('/api/v1/me');
+      location.href = '/dashboard';
+    } catch (caught) {
+      setError(
+        caught instanceof ApiError
+          ? signInMessage(caught.code)
+          : 'Cannot reach TransitOps. Check that the backend is running.',
+      );
+    } finally {
+      setSubmitting(false);
     }
-    localStorage.setItem(
-      'transitops-user',
-      JSON.stringify({ name: a[0], email: a[1], role: a[2], initials: a[3] }),
-    );
-    location.href = '/dashboard';
-  };
+  }
+
   return (
     <main className="login">
       <section className="intro">
@@ -26,8 +54,8 @@ export default function Login() {
         <p>One login, five roles</p>
         <ul>
           {['Fleet Manager', 'Dispatcher', 'Driver', 'Safety Officer', 'Financial Analyst'].map(
-            (x) => (
-              <li key={x}>• {x}</li>
+            (role) => (
+              <li key={role}>• {role}</li>
             ),
           )}
         </ul>
@@ -35,36 +63,51 @@ export default function Login() {
       </section>
       <section className="loginform">
         <h1>Sign in to your account</h1>
-        <p className="sub">Access is scoped to your operational role.</p>
-        <form className="form" onSubmit={go}>
+        <p className="sub">Access is scoped to your approved operational role.</p>
+        <form className="form" onSubmit={signIn}>
           <label className="field">
             Email
-            <input value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email" />
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </label>
           <label className="field">
             Password
             <input
               type="password"
+              required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              aria-label="Password"
+              onChange={(event) => setPassword(event.target.value)}
             />
           </label>
-          {err && <div className="notice">{err}</div>}
-          <button className="button orange">Sign In</button>
+          {error && (
+            <div className="notice" role="alert">
+              {error}
+            </div>
+          )}
+          <button className="button orange" disabled={submitting}>
+            {submitting ? 'Signing in…' : 'Sign In'}
+          </button>
         </form>
+        <p className="sub">
+          New to TransitOps? <Link href="/signup">Request an account</Link>
+        </p>
         <p className="sub">Demo accounts</p>
         <div className="grid">
-          {accounts.map((a) => (
+          {demoAccounts.map(([name, accountEmail, role]) => (
             <button
+              type="button"
               className="button"
-              key={a[1]}
+              key={accountEmail}
               onClick={() => {
-                setEmail(a[1]);
+                setEmail(accountEmail);
                 setPassword('Transit@2026');
               }}
             >
-              {a[0]} — {a[2].replace('_', ' ')}
+              {name} — {role.replaceAll('_', ' ')}
             </button>
           ))}
         </div>

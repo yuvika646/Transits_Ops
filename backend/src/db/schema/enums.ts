@@ -8,6 +8,12 @@ export const roleName = pgEnum('role_name', [
   'FINANCIAL_ANALYST',
 ]);
 export const accessLevel = pgEnum('access_level', ['NONE', 'VIEW', 'MANAGE']);
+export const approvalStatus = pgEnum('approval_status', [
+  'PENDING',
+  'ACTIVE',
+  'REJECTED',
+  'SUSPENDED',
+]);
 export const vehicleType = pgEnum('vehicle_type', ['VAN', 'TRUCK', 'MINI', 'BUS']);
 export const vehicleStatus = pgEnum('vehicle_status', [
   'AVAILABLE',

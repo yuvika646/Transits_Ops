@@ -96,4 +96,81 @@ export const driverRoutes = new Elysia({ prefix: '/api/v1' })
       params: t.Object({ id: t.String({ format: 'uuid' }) }),
       body: t.Object({ reason: t.String({ minLength: 3 }) }),
     },
+  )
+  .get(
+    '/drivers/:id',
+    async ({ actor, params }) => {
+      const [driver] = await db
+        .select()
+        .from(drivers)
+        .where(and(eq(drivers.id, params.id), eq(drivers.organizationId, actor.organizationId)));
+      if (!driver) throw notFound('Driver');
+      return ok(driver);
+    },
+    { params: t.Object({ id: t.String({ format: 'uuid' }) }) },
+  )
+  .patch(
+    '/drivers/:id',
+    async ({ actor, params, body }) => {
+      requireRole(actor, ['FLEET_MANAGER', 'SAFETY_OFFICER']);
+      const [driver] = await db
+        .update(drivers)
+        .set({
+          ...body,
+          safetyScore: body.safetyScore === undefined ? undefined : String(body.safetyScore),
+          tripCompletionRate:
+            body.tripCompletionRate === undefined ? undefined : String(body.tripCompletionRate),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(drivers.id, params.id), eq(drivers.organizationId, actor.organizationId)))
+        .returning();
+      if (!driver) throw notFound('Driver');
+      return ok(driver);
+    },
+    {
+      params: t.Object({ id: t.String({ format: 'uuid' }) }),
+      body: t.Partial(
+        t.Object({
+          name: t.String({ minLength: 1 }),
+          licenseNumber: t.String({ minLength: 1 }),
+          licenseCategory: t.String({ minLength: 1 }),
+          licenseExpiryDate: t.String({ format: 'date' }),
+          contactNumber: t.String({ minLength: 5 }),
+          safetyScore: t.Number({ minimum: 0, maximum: 100 }),
+          tripCompletionRate: t.Number({ minimum: 0, maximum: 100 }),
+        }),
+      ),
+    },
+  )
+  .patch(
+    '/drivers/:id/status',
+    async ({ actor, params, body }) => {
+      requireRole(actor, ['FLEET_MANAGER', 'SAFETY_OFFICER']);
+      const [driver] = await db
+        .update(drivers)
+        .set({ status: body.status, updatedAt: new Date() })
+        .where(and(eq(drivers.id, params.id), eq(drivers.organizationId, actor.organizationId)))
+        .returning();
+      if (!driver) throw notFound('Driver');
+      return ok(driver);
+    },
+    {
+      params: t.Object({ id: t.String({ format: 'uuid' }) }),
+      body: t.Object({
+        status: t.Union([t.Literal('AVAILABLE'), t.Literal('OFF_DUTY'), t.Literal('SUSPENDED')]),
+      }),
+    },
+  )
+  .post(
+    '/drivers/:id/send-license-reminder',
+    async ({ actor, params }) => {
+      requireRole(actor, ['SAFETY_OFFICER', 'FLEET_MANAGER']);
+      const [driver] = await db
+        .select()
+        .from(drivers)
+        .where(and(eq(drivers.id, params.id), eq(drivers.organizationId, actor.organizationId)));
+      if (!driver) throw notFound('Driver');
+      return ok({ sent: true, driverId: driver.id });
+    },
+    { params: t.Object({ id: t.String({ format: 'uuid' }) }) },
   );

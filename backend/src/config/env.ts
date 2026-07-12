@@ -19,5 +19,8 @@ const schema = z.object({
   REMINDER_CRON: z.string().default('0 8 * * *'),
   MAX_UPLOAD_BYTES: z.coerce.number().default(10_485_760),
   LOG_LEVEL: z.string().default('info'),
+  DEFAULT_ORGANIZATION_SLUG: z.string().default('transitops'),
+  SEED_ORGANIZATION_CODE: z.string().min(8),
+  REGISTRATION_INTERNAL_SECRET: z.string().min(32),
 });
 export const env = schema.parse(process.env);

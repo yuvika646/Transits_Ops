@@ -13,9 +13,11 @@ import { exportRoutes } from './modules/exports/routes';
 import { fuelRoutes } from './modules/fuel/routes';
 import { healthRoutes } from './modules/health/routes';
 import { maintenanceRoutes } from './modules/maintenance/routes';
+import { registrationRoutes } from './modules/registration/routes';
 import { notificationRoutes } from './modules/notifications/routes';
 import { settingsRoutes } from './modules/settings/routes';
 import { tripRoutes } from './modules/trips/routes';
+import { userRoutes } from './modules/users/routes';
 import { vehicleRoutes } from './modules/vehicles/routes';
 import { AppError } from './shared/errors';
 export const app = new Elysia()
@@ -73,6 +75,8 @@ export const app = new Elysia()
   .get('/api/v1/health/live', () => ({ data: { status: 'live' } }))
   .all('/api/v1/auth/*', ({ request }) => auth.handler(request))
   .use(healthRoutes)
+  .use(registrationRoutes)
+  .use(userRoutes)
   .use(dashboardRoutes)
   .use(vehicleRoutes)
   .use(driverRoutes)

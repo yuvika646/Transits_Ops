@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-import { allowed, label } from '@/lib/store';
+import { label } from '@/lib/store';
+import { API_URL } from '@/lib/api';
 import type { Role } from '@/lib/types';
 
 export type TransitOpsUser = {
@@ -11,6 +12,7 @@ export type TransitOpsUser = {
   email: string;
   role: Role;
   initials: string;
+  allowedPaths: string[];
 };
 
 const navigationItems = [
@@ -45,11 +47,11 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
 export function AppShell({ user, children }: { user: TransitOpsUser; children: ReactNode }) {
   const currentPath = typeof window === 'undefined' ? '' : location.pathname;
   const visibleNavigationItems = navigationItems.filter(([path]) =>
-    allowed[user.role].includes(path),
+    user.allowedPaths.includes(path),
   );
 
-  function handleSignOut() {
-    localStorage.removeItem('transitops-user');
+  async function handleSignOut() {
+    await fetch(`${API_URL}/api/v1/auth/sign-out`, { method: 'POST', credentials: 'include' });
     location.href = '/login';
   }
 

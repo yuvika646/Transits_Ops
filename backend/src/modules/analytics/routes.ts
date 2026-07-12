@@ -1,9 +1,9 @@
 import { Elysia } from 'elysia';
-import { eq, sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { resolveActor, requireRole } from '../../shared/auth-context';
 import { ok } from '../../shared/response';
-import { fuelLogs, maintenanceRecords, trips } from '../../db/schema';
+import { fuelLogs, maintenanceRecords, trips, vehicles } from '../../db/schema';
 
 export const analyticsRoutes = new Elysia({ prefix: '/api/v1' })
   .derive(async ({ request }) => ({ actor: await resolveActor(request.headers) }))
@@ -38,4 +38,42 @@ export const analyticsRoutes = new Elysia({ prefix: '/api/v1' })
       operationalCost: fuelCost + maintenanceCost,
       revenue: Number(trip?.revenue ?? 0),
     });
+  })
+  .get('/analytics/monthly-revenue', async ({ actor }) => {
+    requireRole(actor, ['FLEET_MANAGER', 'FINANCIAL_ANALYST']);
+    return ok(
+      await db
+        .select({
+          month: sql<string>`to_char(date_trunc('month', ${trips.completedAt}), 'YYYY-MM')`,
+          revenue: sql<number>`coalesce(sum(${trips.revenue}), 0)`,
+        })
+        .from(trips)
+        .where(
+          sql`${trips.organizationId} = ${actor.organizationId} and ${trips.status} = 'COMPLETED' and ${trips.completedAt} is not null`,
+        )
+        .groupBy(sql`date_trunc('month', ${trips.completedAt})`)
+        .orderBy(sql`date_trunc('month', ${trips.completedAt})`),
+    );
+  })
+  .get('/analytics/vehicle-costs', async ({ actor }) => {
+    requireRole(actor, ['FLEET_MANAGER', 'FINANCIAL_ANALYST']);
+    const rows = await db
+      .select({
+        id: vehicles.id,
+        name: vehicles.name,
+        fuelCost: sql<number>`coalesce((select sum(f.cost) from fuel_logs f where f.vehicle_id = ${vehicles.id}), 0)`,
+        maintenanceCost: sql<number>`coalesce((select sum(m.cost) from maintenance_records m where m.vehicle_id = ${vehicles.id}), 0)`,
+        expenseCost: sql<number>`coalesce((select sum(e.amount) from expenses e where e.vehicle_id = ${vehicles.id}), 0)`,
+      })
+      .from(vehicles)
+      .where(eq(vehicles.organizationId, actor.organizationId))
+      .orderBy(desc(vehicles.acquisitionCost));
+    return ok(
+      rows
+        .map((row) => ({
+          ...row,
+          totalCost: Number(row.fuelCost) + Number(row.maintenanceCost) + Number(row.expenseCost),
+        }))
+        .sort((left, right) => right.totalCost - left.totalCost),
+    );
   });

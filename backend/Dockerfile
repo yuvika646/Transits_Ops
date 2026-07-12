@@ -1,0 +1,13 @@
+FROM oven/bun:1.2.19-alpine AS dependencies
+WORKDIR /app
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
+FROM oven/bun:1.2.19-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY package.json ./
+COPY dist ./dist
+USER bun
+EXPOSE 4000
+CMD ["bun", "run", "start"]

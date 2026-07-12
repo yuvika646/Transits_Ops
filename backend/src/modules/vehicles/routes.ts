@@ -99,4 +99,44 @@ export const vehicleRoutes = new Elysia({ prefix: '/api/v1' })
       return ok(row);
     },
     { params: t.Object({ id: t.String({ format: 'uuid' }) }) },
+  )
+  .patch(
+    '/vehicles/:id',
+    async ({ actor, params, body }) => {
+      requireRole(actor, ['FLEET_MANAGER']);
+      const [vehicle] = await db
+        .update(vehicles)
+        .set({
+          ...body,
+          maximumLoadKg: body.maximumLoadKg === undefined ? undefined : String(body.maximumLoadKg),
+          odometerKm: body.odometerKm === undefined ? undefined : String(body.odometerKm),
+          acquisitionCost:
+            body.acquisitionCost === undefined ? undefined : String(body.acquisitionCost),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(vehicles.id, params.id), eq(vehicles.organizationId, actor.organizationId)))
+        .returning();
+      if (!vehicle) throw notFound('Vehicle');
+      return ok(vehicle);
+    },
+    {
+      params: t.Object({ id: t.String({ format: 'uuid' }) }),
+      body: t.Partial(
+        t.Object({
+          registrationNumber: t.String({ minLength: 1 }),
+          name: t.String({ minLength: 1 }),
+          model: t.String(),
+          type: t.Union([
+            t.Literal('VAN'),
+            t.Literal('TRUCK'),
+            t.Literal('MINI'),
+            t.Literal('BUS'),
+          ]),
+          maximumLoadKg: t.Number({ minimum: 0 }),
+          odometerKm: t.Number({ minimum: 0 }),
+          acquisitionCost: t.Number({ minimum: 0 }),
+          region: t.String({ minLength: 1 }),
+        }),
+      ),
+    },
   );

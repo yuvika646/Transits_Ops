@@ -15,7 +15,7 @@ export async function resolveActor(headers: Headers): Promise<Actor> {
   const session = await auth.api.getSession({ headers });
   if (!session) throw new AppError('UNAUTHENTICATED', 'Authentication is required.', 401);
   const [user] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
-  if (!user || !user.active || !user.organizationId)
+  if (!user || !user.active || user.approvalStatus !== 'ACTIVE' || !user.organizationId)
     throw new AppError('UNAUTHENTICATED', 'Account is unavailable.', 401);
   const assigned = await db
     .select({ name: roles.name })

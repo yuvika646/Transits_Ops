@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { eq, sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { drivers, trips, vehicles } from '../../db/schema';
 import { resolveActor } from '../../shared/auth-context';
@@ -41,4 +41,23 @@ export const dashboardRoutes = new Elysia({ prefix: '/api/v1' })
       driversOnDuty: Number(dr?.onDuty ?? 0),
       fleetUtilization: active ? (onTrip / active) * 100 : 0,
     });
-  });
+  })
+  .get('/dashboard/recent-trips', async ({ actor }) =>
+    ok(
+      await db
+        .select()
+        .from(trips)
+        .where(eq(trips.organizationId, actor.organizationId))
+        .orderBy(desc(trips.createdAt))
+        .limit(10),
+    ),
+  )
+  .get('/dashboard/vehicle-status', async ({ actor }) =>
+    ok(
+      await db
+        .select({ status: vehicles.status, count: sql<number>`count(*)` })
+        .from(vehicles)
+        .where(eq(vehicles.organizationId, actor.organizationId))
+        .groupBy(vehicles.status),
+    ),
+  );

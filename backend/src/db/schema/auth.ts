@@ -11,7 +11,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { accessLevel, roleName } from './enums';
+import { accessLevel, approvalStatus, roleName } from './enums';
 import { organizations } from './organizations';
 
 export const users = pgTable(
@@ -23,7 +23,11 @@ export const users = pgTable(
     email: text('email').notNull(),
     emailVerified: boolean('email_verified').notNull().default(false),
     image: text('image'),
-    active: boolean('active').notNull().default(true),
+    active: boolean('active').notNull().default(false),
+    approvalStatus: approvalStatus('approval_status').notNull().default('PENDING'),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    approvedBy: text('approved_by'),
+    rejectionReason: text('rejection_reason'),
     failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
