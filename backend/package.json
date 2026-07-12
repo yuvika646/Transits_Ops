@@ -1,0 +1,50 @@
+{
+  "name": "transitops-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "worker": "bun src/worker.ts",
+    "build": "bun build src/server.ts src/worker.ts --outdir dist --target bun",
+    "start": "bun dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bun src/db/migrate.ts",
+    "db:seed": "bun src/db/seed.ts",
+    "db:studio": "drizzle-kit studio",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "bun run format:check \u0026\u0026 bun run lint \u0026\u0026 bun run typecheck \u0026\u0026 bun run test \u0026\u0026 bun run build"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "latest",
+    "@aws-sdk/s3-request-presigner": "latest",
+    "@elysiajs/cors": "latest",
+    "@elysiajs/cron": "latest",
+    "@elysiajs/openapi": "latest",
+    "@elysiajs/static": "latest",
+    "better-auth": "latest",
+    "drizzle-orm": "latest",
+    "elysia": "latest",
+    "nodemailer": "latest",
+    "pdf-lib": "latest",
+    "pg": "latest",
+    "pino": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/nodemailer": "latest",
+    "@types/pg": "latest",
+    "drizzle-kit": "latest",
+    "eslint": "latest",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.5",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "latest"
+  }
+}

@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Tests and coverage
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Runtime files
+*.log
+*.pid
+*.pid.lock
+logs/
+
+# Local databases and storage
+*.sqlite
+*.sqlite3
+*.db
+.minio/
+postgres-data/
+minio-data/
+
+# Tool caches
+.cache/
+.turbo/
+.eslintcache
+.prettier-cache
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local temporary files
+tmp/
+temp/
+*.tmp
+*.bak
