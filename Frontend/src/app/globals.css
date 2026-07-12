@@ -305,3 +305,108 @@ td {
     display: block;
   }
 }
+
+.analytics-chart-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.analytics-chart-section {
+  min-width: 0;
+  min-height: 330px;
+}
+
+.analytics-chart-section h2 {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.monthly-revenue-chart,
+.chart-canvas,
+.chart-skeleton,
+.chart-state {
+  width: 100%;
+  height: 260px;
+  min-height: 260px;
+}
+
+.chart-state,
+.chart-skeleton {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.chart-skeleton {
+  background: color-mix(in srgb, var(--line) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  border-radius: 4px;
+  animation: chart-pulse 1.4s ease-in-out infinite;
+}
+
+.revenue-tooltip {
+  display: grid;
+  gap: 3px;
+  padding: 9px 11px;
+  background: #17191b;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text);
+  box-shadow: 0 5px 16px rgb(0 0 0 / 28%);
+}
+
+.revenue-tooltip span {
+  color: #7eafe0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes chart-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-skeleton {
+    animation: none;
+  }
+}
+
+@media (max-width: 800px) {
+  .analytics-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-chart-section {
+    min-height: 310px;
+  }
+
+  .monthly-revenue-chart,
+  .chart-canvas,
+  .chart-skeleton,
+  .chart-state {
+    height: 240px;
+    min-height: 240px;
+  }
+}

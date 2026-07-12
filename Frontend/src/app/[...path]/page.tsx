@@ -928,7 +928,7 @@ export default function App() {
   else if (p === '/driver/my-trips') child = <Trips s={s} set={operations.set} user={user} own />;
   else if (p === '/maintenance') child = <Maintenance s={s} set={operations.set} />;
   else if (p === '/fuel-expenses') child = <Financials s={s} />;
-  else if (p === '/analytics') child = <Financials s={s} analytics />;
+  else if (p === '/analytics') child = <AnalyticsView state={s} />;
   else if (p === '/settings') child = <Settings set={operations.set} />;
   else child = <Detail s={s} />;
   return <AppShell user={user}>{child}</AppShell>;
